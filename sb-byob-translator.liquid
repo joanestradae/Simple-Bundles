@@ -1,4 +1,7 @@
-de: [
+<script>
+(function () {
+  const translationConfigs = {
+    de: [
       {
         selector: '.byob-cta',
         replacements: [
@@ -70,4 +73,116 @@ de: [
       }
     ]
   };
-g
+
+  const storefrontLanguageCode = (
+    document.documentElement.lang ||
+    window.Shopify?.locale ||
+    ''
+  ).toLowerCase().split('-')[0];
+
+  const translations =
+    translationConfigs[storefrontLanguageCode];
+
+  if (!translations) return;
+
+  function initializeTranslations(byobWrapper) {
+    function translateElement(element, entry) {
+      const walker = document.createTreeWalker(
+        element,
+        NodeFilter.SHOW_TEXT
+      );
+
+      let textNode;
+
+      while ((textNode = walker.nextNode())) {
+        const sourceText = textNode.nodeValue;
+
+        for (const replacement of entry.replacements) {
+          if (replacement.textPattern) {
+            const translatedText = sourceText.replace(
+              replacement.textPattern,
+              replacement.translatedText
+            );
+
+            if (translatedText !== sourceText) {
+              textNode.nodeValue = translatedText;
+              break;
+            }
+          } else if (sourceText === replacement.originalText) {
+            textNode.nodeValue = replacement.translatedText;
+            break;
+          }
+        }
+      }
+    }
+
+    function applyTranslations() {
+      translations.forEach((entry) => {
+        byobWrapper
+          .querySelectorAll(entry.selector)
+          .forEach((element) => {
+            translateElement(element, entry);
+          });
+      });
+    }
+
+    applyTranslations();
+
+    const translationObserver = new MutationObserver(() => {
+      applyTranslations();
+    });
+
+    translationObserver.observe(byobWrapper, {
+      childList: true,
+      subtree: true,
+    });
+  }
+
+  function findAndInitialize() {
+    const byobWrapper = document.querySelector(
+      '#byob-app-embed-wrapper'
+    );
+
+    if (!byobWrapper) return false;
+
+    initializeTranslations(byobWrapper);
+    return true;
+  }
+
+  function observeForEmbed() {
+    const embedObserver = new MutationObserver(() => {
+      if (!findAndInitialize()) return;
+
+      embedObserver.disconnect();
+      clearTimeout(observerTimeout);
+    });
+
+    const observerTimeout = setTimeout(() => {
+      embedObserver.disconnect();
+    }, 5000);
+
+    embedObserver.observe(document.documentElement, {
+      childList: true,
+      subtree: true
+    });
+  }
+
+  // Initialize immediately if the embed is already available.
+  if (findAndInitialize()) return;
+
+  // If the DOM is still loading, wait until it has been parsed
+  // before checking again and starting the observer if needed.
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      if (findAndInitialize()) return;
+
+      observeForEmbed();
+    }, { once: true });
+
+    return;
+  }
+
+  // The DOM is already ready, so start watching for the embed.
+  observeForEmbed();
+})();
+</script>
