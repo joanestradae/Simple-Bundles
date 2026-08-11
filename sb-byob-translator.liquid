@@ -128,8 +128,30 @@
 
     applyTranslations();
 
-    const translationObserver = new MutationObserver(() => {
-      applyTranslations();
+     const translationObserver = new MutationObserver((mutationsList) => {
+      mutationsList.forEach((mutation) => {
+        // We only care about new nodes being added
+        if (mutation.type === 'childList') {
+          mutation.addedNodes.forEach((node) => {
+            // Only process Element nodes (skip raw text or comment nodes)
+            if (node.nodeType === Node.ELEMENT_NODE) {
+              translations.forEach((entry) => {
+                
+                // 1. Check if the newly added node ITSELF matches the selector
+                if (node.matches(entry.selector)) {
+                  translateElement(node, entry);
+                }
+                
+                // 2. Check if any CHILDREN of the new node match
+                node.querySelectorAll(entry.selector).forEach((element) => {
+                  translateElement(element, entry);
+                });
+                
+              });
+            }
+          });
+        }
+      });
     });
 
     translationObserver.observe(byobWrapper, {
